@@ -1,70 +1,133 @@
 #include <stdio.h>
 #include <setjmp.h>
+#include <unistd.h>
 #include "coos.h"
 
-/* application tasks */
-void *task1(void *arg);
-void *task2(void *arg);
-void *task3(void *arg);
+void *t1(void *arg);
+void *t2(void *arg);
+void *t3(void *arg);
+void *t4(void *arg);
 
-void *task3(void *arg)
-{
-	task_init();
-
-	struct message_s *pmsg;
-	int cnt = 300000;
-
-	while (1) {				/* task body */
-		printf("[task 3 id: %d %d]\n", task_id(), cnt++);
-		if (task_mq_items() > 0) {
-			pmsg = task_mq_dequeue();
-			printf("received (%d): type: %d, data: %ld\n", task_mq_items(), pmsg->type, (long)pmsg->data);
-		}
-		task_yield();
-	}
-}
-
-void *task2(void *arg)
+void *t1(void *arg)
 {
 	task_init();
 	
-	int cnt = 200000;
+	int val = 0;
+	struct message_s msg1, msg2;
+	char str[50];
+	struct message_s *pmsg;
+	
+	while (1) {
+		printf("t1\n");
+		
+		if (task_mq_items() == 0)
+			if (val > 0)
+				task_yield();
 
-	while (1) {				/* task body */
-		printf("[task 2 id: %d %d]\n", task_id(), cnt++);
+		printf("task 1 enters...\n");
+		
+		if (task_mq_items())
+			task_mq_dequeue();
+
+		pmsg = &msg1;
+		pmsg->data = (void *)(size_t)val;
+		task_mq_enqueue(t2, pmsg);
+		pmsg = &msg2;
+		sprintf(str, "hello %d from t1...", val++);
+		pmsg->data = (void *)&str;
+		task_mq_enqueue(t3, pmsg);
+
 		task_yield();
 	}
 }
 
-void *task1(void *arg)
+void *t2(void *arg)
 {
 	task_init();
+	
+	struct message_s msg1;
+	int val = 200;
+	struct message_s *msg;
+	
+	while (1) {
+		printf("t2\n");
+		
+		if (task_mq_items() > 0) {
+			printf("task 2 enters...\n");
 
-	struct message_s msg;
-	struct message_s *pmsg = &msg;	
-	int cnt = 100000;
-
-	while (1) {				/* task body */
-		printf("[task 1 id: %d %d]\n", task_id(), cnt++);
-		if ((cnt % 10) == 0) {
-			pmsg->type = 0;
-			pmsg->data = (void *)123;
-			task_mq_enqueue(task3, pmsg);
+			msg = task_mq_dequeue();
+			printf("message %d\n", (int)(size_t)msg->data);
+			msg = &msg1;
+			msg->data = (void *)(size_t)val++;
+			task_mq_enqueue(t4, msg);
 		}
+		
 		task_yield();
 	}
 }
 
+void *t3(void *arg)
+{
+	task_init();
+	
+	struct message_s msg1;
+	int val = 300;
+	struct message_s *msg;
+	
+	while (1) {
+		printf("t3\n");
+		
+		if (task_mq_items() > 0) {
+			printf("task 3 enters...\n");
+			
+			msg = task_mq_dequeue();
+			printf("message: %s\n", (char *)msg->data);
+			msg = &msg1;
+			msg->data = (void *)(size_t)val++;
+			task_mq_enqueue(t4, msg);
+		}
+	
+		task_yield();
+	}
+}
+
+void *t4(void *arg)
+{
+	task_init();
+	
+	struct message_s *msg1, *msg2;
+	struct message_s dummy;
+	
+	while (1) {
+		printf("t4\n");
+		
+		if (task_mq_items() > 1) {
+			printf("task 4 enters...\n");
+
+			msg1 = task_mq_dequeue();
+			msg2 = task_mq_dequeue();
+			printf("messages: %d %d\n", (int)(size_t)msg1->data, (int)(size_t)msg2->data);
+			
+			usleep(100000);
+			
+			task_mq_enqueue(t1, &dummy);
+		}
+		
+		task_yield();
+	}
+}
 
 int main(void)
 {
 	struct task_s tasks[MAX_TASKS] = { 0 };
 	struct task_s *ptasks = tasks;
-	
+
+	/* setup CoOS and tasks */
 	task_pinit(ptasks);
-	task_add(ptasks, task1, 128, 1024);
-	task_add(ptasks, task2, 75, 1024);
-	task_add(ptasks, task3, 50, 1024);
+	task_add(ptasks, t1, 30, 2048);
+	task_add(ptasks, t2, 50, 2048);
+	task_add(ptasks, t3, 30, 2048);
+	task_add(ptasks, t4, 60, 2048);
 	sched_init(ptasks);
 	
 	/* never reached */
