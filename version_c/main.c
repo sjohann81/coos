@@ -54,13 +54,16 @@ void task_schedule(struct task_s *tasks)
 	struct task_s *ptask;
 	int i;
 	
-	for (i = 0; i < MAX_TASKS; i++) {
-		ptask = &tasks[i];
-		if (!ptask->task) break;
-		
-		if (!--ptask->pcounter) {
-			ptask->pcounter = ptask->priority;
-			ptask->task(0);
+	while (1) {
+		for (i = 0; i < MAX_TASKS; i++) {
+			ptask = &tasks[i];
+			if (!ptask->task) break;
+			
+			if (!--ptask->pcounter) {
+				ptask->pcounter = ptask->priority;
+				ptask->task(0);
+				return;
+			}
 		}
 	}
 }
