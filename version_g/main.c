@@ -3,10 +3,21 @@
 #include <unistd.h>
 #include "coos.h"
 
+void *t0(void *arg);
 void *t1(void *arg);
 void *t2(void *arg);
 void *t3(void *arg);
 void *t4(void *arg);
+
+void *t0(void *arg)
+{
+	task_init();
+	
+	while (1) {
+		printf("tid: %d\n", task_id());
+		task_yield();
+	}
+}
 
 void *t1(void *arg)
 {
@@ -18,7 +29,7 @@ void *t1(void *arg)
 	struct message_s *pmsg;
 	
 	while (1) {
-		printf("t1\n");
+		printf("tid: %d\n", task_id());
 		
 		if (task_mq_items() == 0)
 			if (val > 0)
@@ -50,7 +61,7 @@ void *t2(void *arg)
 	struct message_s *msg;
 	
 	while (1) {
-		printf("t2\n");
+		printf("tid: %d\n", task_id());
 		
 		if (task_mq_items() > 0) {
 			printf("task 2 enters...\n");
@@ -75,7 +86,7 @@ void *t3(void *arg)
 	struct message_s *msg;
 	
 	while (1) {
-		printf("t3\n");
+		printf("tid: %d\n", task_id());
 		
 		if (task_mq_items() > 0) {
 			printf("task 3 enters...\n");
@@ -99,7 +110,7 @@ void *t4(void *arg)
 	struct message_s dummy;
 	
 	while (1) {
-		printf("t4\n");
+		printf("tid: %d\n", task_id());
 		
 		if (task_mq_items() > 1) {
 			printf("task 4 enters...\n");
@@ -124,6 +135,7 @@ int main(void)
 
 	/* setup CoOS and tasks */
 	task_pinit(ptasks);
+	task_add(ptasks, t0, 255, 2048);
 	task_add(ptasks, t1, 30, 2048);
 	task_add(ptasks, t2, 50, 2048);
 	task_add(ptasks, t3, 30, 2048);
