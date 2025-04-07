@@ -126,7 +126,7 @@ int task_mq_enqueue(void *(task_ptr)(void *), struct message_s *message)
 	if (tail == pmqueue->head)
 		return -1;
 
-	pmqueue->queue[pmqueue->tail] = *message;
+	pmqueue->queue[pmqueue->tail] = message;
 	pmqueue->tail = tail;
 	pmqueue->items++;
 	
@@ -137,6 +137,7 @@ struct message_s *task_mq_dequeue(void)
 {
 	struct mq_s *pmqueue;
 	int head;
+	struct message_s *message;
 
 	pmqueue = &pcurrtask->mqueue;
 
@@ -144,10 +145,11 @@ struct message_s *task_mq_dequeue(void)
 		return 0;
 
 	head = pmqueue->head;
+	message = pmqueue->queue[head];
 	pmqueue->head = (pmqueue->head + 1) & pmqueue->mask;
 	pmqueue->items--;
 
-	return &pmqueue->queue[head];
+	return message;
 }
 
 int task_mq_items(void)
